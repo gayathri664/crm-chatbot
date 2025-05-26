@@ -1,9 +1,7 @@
 pipeline {
     agent any
     parameters{
-        string(name : 'name of the person', defaultValue: '',description: 'enter your name')
-        choice(name: 'github url', choices: ['githuburl', 'gitlaburl'], description: 'select the url')
-    }
+         }
   stages {
         stage('param demo') {
             steps {
