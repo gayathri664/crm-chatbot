@@ -1,46 +1,71 @@
 pipeline {
     agent any
-	tools {
-  maven 'mvn3'
-  }
-		
-stages {
-        stage('Clone the sourcecode') {
+
+    tools {
+        maven 'mvn3'
+    }
+
+    stages {
+        stage('Clone the Source Code') {
             steps {
-                echo 'Already configured'
+                echo 'Skipping checkout – already configured externally.'
             }
         }
-		
-		stage('Build the sourcecode using maven') {
+
+        stage('Build with Maven') {
             steps {
-                echo 'Build the sourcecode using maven'
-				sh 'mvn clean package'
+                echo 'Running Maven build...'
+                sh '''
+                    set -xe
+                    mvn clean package
+                '''
             }
         }
-		
-		stage('Create the image') {
+
+        stage('Build Docker Image') {
             steps {
-                echo 'Create the image'
-				sh "docker build . -t gayathri7977/docker-cloud:${BUILD_NUMBER}"
+                echo "Building Docker image with tag: ${BUILD_NUMBER}"
+                sh '''
+                    set -xe
+                    docker build -t gayathri7977/docker-cloud:${BUILD_NUMBER} .
+                '''
             }
         }
-		
-		stage('Push the image to the docker registry') {
+
+        stage('Push to Docker Hub') {
             steps {
-               withCredentials([string(credentialsId: 'docker', variable: 'dockerpassword')]) {
-					echo 'Push the image to the docker registry'
-					sh "docker login -u gayathri7977 -p ${dockerpassword}"
-					sh "docker push gayathri7977/docker-cloud:${BUILD_NUMBER}"
-				}
+                echo 'Pushing Docker image to Docker Hub...'
+                withCredentials([string(credentialsId: 'docker', variable: 'dockerpassword')]) {
+                    sh '''
+                        set -xe
+                        echo "${dockerpassword}" | docker login -u gayathri7977 --password-stdin
+                        docker push gayathri7977/docker-cloud:${BUILD_NUMBER}
+                    '''
+                }
             }
         }
-		
-		stage('Create the container') {
+
+        stage('Run Docker Container') {
             steps {
-                echo 'Create the container'
-		    sh "docker rm -f mycontainer"		
-		    sh "docker run -d -p 9090:8080 --name mycontainer gayathri7977/docker-cloud:${BUILD_NUMBER}"
+                echo 'Starting new Docker container...'
+                sh '''
+                    set -xe
+                    docker rm -f mycontainer || true
+                    docker run -d -p 9090:8080 --name mycontainer gayathri7977/docker-cloud:${BUILD_NUMBER}
+                '''
             }
         }
     }
-}		
+
+    post {
+        success {
+            echo "✅ Pipeline executed successfully!"
+        }
+        failure {
+            echo "❌ Pipeline failed. Check the previous logs for the error."
+        }
+    }
+}
+
+		
+		
